@@ -78,7 +78,13 @@ PROVINCIAL_PROGRAMS = {
         "name": "Alberta Blue Cross (Government)",
         "link": "https://www.alberta.ca/alberta-blue-cross.aspx",
         "description": "Alberta's government-sponsored drug benefit plan"
+    },
+    "other": {
+        "name": "Ontario Trillium Drug Program",
+        "link": "https://www.ontario.ca/page/trillium-drug-program",
+        "description": "Check your provincial drug benefit program for coverage options"
     }
+    
 }
 
 def get_drug_key(drug_name: str) -> str:
@@ -109,7 +115,7 @@ def check_coverage(
     generic_savings = round(out_of_pocket - generic_cost, 2) if generic_saves_money else 0
     total_savings = max(generic_savings, 0)
 
-    provincial = PROVINCIAL_PROGRAMS.get(province.lower(), PROVINCIAL_PROGRAMS["ontario"])
+    provincial = PROVINCIAL_PROGRAMS.get(province.lower(), PROVINCIAL_PROGRAMS["other"])
     provincial_covered = generic_saves_money
 
     return {

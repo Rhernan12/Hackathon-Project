@@ -19,10 +19,14 @@ def root():
 
 @app.post("/analyze")
 async def analyze(
-    province: str = Form(default="ontario"),
+    province: str = Form(default=""),
     receipt: Optional[UploadFile] = File(default=None),
     booklet: Optional[UploadFile] = File(default=None)
 ):
+    # default to "other" if province not provided
+    if not province or province.strip() == "":
+        province = "other"
+    
     medical_keywords = ["mg", "rx", "din", "pharmacy", "prescription", "drug", "tablet", "capsule", "ml", "dose"]
     insurance_keywords = ["coverage", "benefit", "insurance", "dental", "vision", "prescription",
                          "deductible", "premium", "plan", "eligible", "claim", "maximum"]

@@ -83,7 +83,8 @@ def analyze_booklet_only() -> dict:
 
 def analyze_both(receipt_text: str, booklet_text: str, province: str) -> dict:
     """Both uploaded — this is the wow moment"""
-    
+    booklet_text = booklet_text[:3000]
+
     # Step 1 - parse booklet for coverage
     booklet_response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
@@ -162,6 +163,8 @@ IMPORTANT: Return ONLY ONE JSON object. Real numbers only, no placeholders."""
     if not drug_data.get("brand_cost"):
         drug_data["brand_cost"] = 94.00
 
+    drug_data.pop("insurance_pct", None)
+
     # Step 3 - run coverage engine with real insurance %
     coverage = check_coverage(
         drug_name=drug_data["drug_name"],
@@ -172,7 +175,13 @@ IMPORTANT: Return ONLY ONE JSON object. Real numbers only, no placeholders."""
 
     coverage["mode"] = "full_analysis"
     coverage["booklet"] = booklet_data
-    coverage["message"] = f"With your {booklet_data['coverage_percentage']}% insurance coverage and switching to the generic, you could save ${coverage['total_savings']:.2f}."
+    coverage["message"] = (
+    f"With your {booklet_data['coverage_percentage']}% insurance coverage, "
+    f"your out-of-pocket cost is ${coverage['out_of_pocket']:.2f}. "
+    + (f"Switch to the generic to save an additional ${coverage['total_savings']:.2f}."
+    if coverage['total_savings'] > 0 else
+    "You are already getting the best available price.")
+)
     
     return {**drug_data, **coverage}
 
