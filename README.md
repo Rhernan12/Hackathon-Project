@@ -110,15 +110,7 @@ npx expo start
 ```
  
 Scan the QR code with Expo Go on your phone.
- 
-### Environment Variables
- 
-Create `backend/.env`:
-```
-GROQ_API_KEY=your_groq_key
-COS_ACCESS_KEY=your_ibm_cos_access_key
-COS_SECRET_KEY=your_ibm_cos_secret_key
-```
+
  
 ## 👥 Team
  
