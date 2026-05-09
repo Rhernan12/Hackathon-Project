@@ -129,7 +129,7 @@ export default function ActionTab() {
     setDocType(docType === "receipt" ? "booklet" : "receipt");
   };
 
-  const handleSendAll = () => {
+  const handleSendAll = async () => {
     if (!hasReceipt) {
       Alert.alert(
         "Receipt Required",
@@ -139,30 +139,76 @@ export default function ActionTab() {
     }
 
     setDialogVisible(false);
-    console.log(`Ready to send ${documents.length} documents`);
+    setIsUploading(true);
 
-    // Create the structured object for your backend
-    const payload = {
-      province,
-      documents,
-    };
+    try {
+      const formData = new FormData();
+      formData.append("province", province);
 
-    // Convert it to a JSON string
-    const jsonPayload = JSON.stringify(payload, null, 2);
-    console.log("Ready to send payload to backend:\n", jsonPayload);
+      documents.forEach((doc) => {
+        let fileToUpload: any;
+        if (doc.file) {
+          fileToUpload = {
+            uri: doc.file.uri,
+            type: doc.file.mimeType || "application/octet-stream",
+            name: doc.file.name,
+          };
+        } else if (doc.pictures && doc.pictures.length > 0) {
+          fileToUpload = {
+            uri: doc.pictures[0],
+            type: "image/jpeg",
+            name: `${doc.type}.jpg`,
+          };
+        }
 
-    // TODO: Add your fetch or axios request here
-    // e.g. fetch('https://api.yourdomain.com/upload', { method: 'POST', body: jsonPayload })
+        if (fileToUpload) {
+          // @ts-ignore - RN FormData requires this format
+          formData.append(doc.type || "file", fileToUpload);
+        }
+      });
 
-    // Clear out the state after sending
-    setDocuments([]);
-    setProvince("");
-    setPhotoBatch([]);
-    setPickedFile(null);
-    setDocType("receipt");
+      console.log("Sending payload to backend...");
 
-    // Redirect to the dashboard to show the results
-    router.replace("/");
+      const response = await fetch(
+        "https://scrimmage-mothproof-liberty.ngrok-free.dev/analyze",
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Server responded with:", response.status, errorText);
+        throw new Error(
+          `Upload failed (Status ${response.status}): ${errorText}`,
+        );
+      }
+
+      const resultData = await response.json();
+      console.log("✅ Success:", resultData);
+
+      // Clear out the state after sending
+      setDocuments([]);
+      setProvince("");
+      setPhotoBatch([]);
+      setPickedFile(null);
+      setDocType("receipt");
+
+      // Redirect to the dashboard and pass the live results
+      router.replace({
+        pathname: "/dashboard",
+        params: { result: JSON.stringify(resultData) },
+      });
+    } catch (error) {
+      console.error("Upload Error:", error);
+      Alert.alert(
+        "Upload Failed",
+        "There was an error communicating with the server.",
+      );
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -352,7 +398,8 @@ export default function ActionTab() {
             <Button
               mode="contained"
               buttonColor={hasReceipt ? "#22c55e" : undefined}
-              disabled={!hasReceipt}
+              disabled={!hasReceipt || isUploading}
+              loading={isUploading}
               icon="check-circle"
               onPress={handleSendAll}
               className="w-full"
@@ -396,7 +443,8 @@ export default function ActionTab() {
                 mode="contained"
                 onPress={handleSendAll}
                 buttonColor={hasReceipt ? "#22c55e" : undefined}
-                disabled={!hasReceipt}
+                disabled={!hasReceipt || isUploading}
+                loading={isUploading}
                 icon="check-circle"
                 style={{ marginTop: "5%" }}
               >

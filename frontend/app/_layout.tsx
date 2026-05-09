@@ -57,7 +57,10 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="action" options={{ title: "Scan Documents" }} />
-        <Stack.Screen name="index" options={{ title: "Dashboard Results" }} />
+        <Stack.Screen
+          name="dashboard"
+          options={{ title: "Dashboard Results" }}
+        />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
       </Stack>
     </PaperProvider>
