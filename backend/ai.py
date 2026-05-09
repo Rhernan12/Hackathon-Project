@@ -118,7 +118,7 @@ IMPORTANT: Return ONLY ONE JSON object, not multiple."""
         messages=[{
         "role": "user",
         "content": f"""Extract the SINGLE medication with highest patient cost from this pharmacy receipt.
-The cost is in the 'Patient Paid' column on the right side.
+The cost is in the 'Patient Paid' or 'Paid' column on the right side.
 Return ONE JSON object only, no markdown, no explanation:
 
 Receipt: {receipt_text}

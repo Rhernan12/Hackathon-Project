@@ -1,16 +1,63 @@
 ODB_FORMULARY = {
+    # Diabetes
     "metformin": {"covered": True, "generic_cost": 12.00, "brand": "Glucophage"},
+    "insulin": {"covered": True, "generic_cost": 45.00, "brand": "Lantus"},
+    "glipizide": {"covered": True, "generic_cost": 10.00, "brand": "Glucotrol"},
+    
+    # Cholesterol
     "atorvastatin": {"covered": True, "generic_cost": 15.00, "brand": "Lipitor"},
-    "lisinopril": {"covered": True, "generic_cost": 10.00, "brand": "Zestril"},
-    "amlodipine": {"covered": True, "generic_cost": 11.00, "brand": "Norvasc"},
-    "omeprazole": {"covered": True, "generic_cost": 14.00, "brand": "Losec"},
-    "levothyroxine": {"covered": True, "generic_cost": 9.00, "brand": "Synthroid"},
-    "ramipril": {"covered": True, "generic_cost": 13.00, "brand": "Altace"},
-    "hydrochlorothiazide": {"covered": True, "generic_cost": 8.00, "brand": "Microzide"},
-    "pantoprazole": {"covered": True, "generic_cost": 16.00, "brand": "Pantoloc"},
     "rosuvastatin": {"covered": True, "generic_cost": 18.00, "brand": "Crestor"},
-}
+    "simvastatin": {"covered": True, "generic_cost": 10.00, "brand": "Zocor"},
 
+    # Blood pressure
+    "lisinopril": {"covered": True, "generic_cost": 10.00, "brand": "Zestril"},
+    "ramipril": {"covered": True, "generic_cost": 13.00, "brand": "Altace"},
+    "amlodipine": {"covered": True, "generic_cost": 11.00, "brand": "Norvasc"},
+    "hydrochlorothiazide": {"covered": True, "generic_cost": 8.00, "brand": "Microzide"},
+    "bisoprolol": {"covered": True, "generic_cost": 12.00, "brand": "Monocor"},
+    "perindopril": {"covered": True, "generic_cost": 14.00, "brand": "Coversyl"},
+
+    # Stomach / acid
+    "omeprazole": {"covered": True, "generic_cost": 14.00, "brand": "Losec"},
+    "pantoprazole": {"covered": True, "generic_cost": 16.00, "brand": "Pantoloc"},
+    "rabeprazole": {"covered": True, "generic_cost": 15.00, "brand": "Pariet"},
+
+    # Thyroid
+    "levothyroxine": {"covered": True, "generic_cost": 9.00, "brand": "Synthroid"},
+
+    # Antibiotics
+    "amoxicillin": {"covered": True, "generic_cost": 7.00, "brand": "Amoxil"},
+    "azithromycin": {"covered": True, "generic_cost": 12.00, "brand": "Zithromax"},
+    "ciprofloxacin": {"covered": True, "generic_cost": 14.00, "brand": "Cipro"},
+    "doxycycline": {"covered": True, "generic_cost": 10.00, "brand": "Vibramycin"},
+
+    # Respiratory
+    "salbutamol": {"covered": True, "generic_cost": 8.00, "brand": "Ventolin"},
+    "fluticasone": {"covered": True, "generic_cost": 25.00, "brand": "Flovent"},
+    "montelukast": {"covered": True, "generic_cost": 15.00, "brand": "Singulair"},
+    "tiotropium": {"covered": True, "generic_cost": 35.00, "brand": "Spiriva"},
+
+    # Mental health
+    "sertraline": {"covered": True, "generic_cost": 12.00, "brand": "Zoloft"},
+    "escitalopram": {"covered": True, "generic_cost": 14.00, "brand": "Cipralex"},
+    "fluoxetine": {"covered": True, "generic_cost": 10.00, "brand": "Prozac"},
+    "quetiapine": {"covered": True, "generic_cost": 20.00, "brand": "Seroquel"},
+    "venlafaxine": {"covered": True, "generic_cost": 16.00, "brand": "Effexor"},
+
+    # Pain / inflammation
+    "ibuprofen": {"covered": True, "generic_cost": 6.00, "brand": "Advil"},
+    "naproxen": {"covered": True, "generic_cost": 8.00, "brand": "Naprosyn"},
+    "celecoxib": {"covered": True, "generic_cost": 18.00, "brand": "Celebrex"},
+    "gabapentin": {"covered": True, "generic_cost": 15.00, "brand": "Neurontin"},
+
+    # Blood thinners
+    "warfarin": {"covered": True, "generic_cost": 10.00, "brand": "Coumadin"},
+    "apixaban": {"covered": False, "generic_cost": 85.00, "brand": "Eliquis"},
+    "rivaroxaban": {"covered": False, "generic_cost": 90.00, "brand": "Xarelto"},
+
+    # Vaccines / other — not typically covered by ODB
+    "influenza": {"covered": False, "generic_cost": 12.99, "brand": "Fluviral"},
+}
 PROVINCIAL_PROGRAMS = {
     "ontario": {
         "name": "Ontario Trillium Drug Program",
@@ -70,5 +117,7 @@ def check_coverage(
         "provincial_covered": provincial_covered,
         "total_savings": total_savings,
         "verdict": f"You could save ${total_savings:.2f} by switching to the generic and applying for {provincial['name']}."
-        if total_savings > 0 else "You are already getting the best available price."
-    }
+        if total_savings > 0 else 
+        "No generic alternative found in the Ontario Drug Benefit formulary. You may still be eligible for provincial coverage — check with your pharmacist."
+        if not generic_available else
+        "You are already getting the best available price."}
