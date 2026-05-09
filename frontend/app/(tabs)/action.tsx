@@ -1,20 +1,22 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
+import { useRouter } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
 import React, { useRef, useState } from "react";
 import { Alert, Image, ScrollView, View } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import {
   Button,
   Card,
   Text,
-  TextInput,
   SegmentedButtons,
   Dialog,
   Portal,
 } from "react-native-paper";
 
+import { FontAwesome6 } from "@expo/vector-icons";
+
 interface UserDocument {
   label?: string;
+  type?: string;
   pictures?: string[];
   file?: { uri: string; name: string; mimeType?: string };
 }
@@ -30,8 +32,13 @@ export default function ActionTab() {
   } | null>(null);
   const [documents, setDocuments] = useState<UserDocument[]>([]);
   const [province, setProvince] = useState("");
-  const [userLabel, setUserLabel] = useState("");
+  const [docType, setDocType] = useState("receipt");
   const [dialogVisible, setDialogVisible] = useState(false);
+  const router = useRouter();
+  const [isUploading, setIsUploading] = React.useState(false);
+
+  const hasReceipt = documents.some((d) => d.type === "receipt");
+  const hasBooklet = documents.some((d) => d.type === "booklet");
 
   if (!permission) {
     return (
@@ -107,7 +114,7 @@ export default function ActionTab() {
     }
 
     const newDoc: UserDocument = {
-      label: userLabel,
+      type: docType,
       pictures: [...photoBatch],
       file: pickedFile ? { ...pickedFile } : undefined,
     };
@@ -119,10 +126,18 @@ export default function ActionTab() {
     setDialogVisible(false);
     setPhotoBatch([]);
     setPickedFile(null);
-    setUserLabel("");
+    setDocType(docType === "receipt" ? "booklet" : "receipt");
   };
 
   const handleSendAll = () => {
+    if (!hasReceipt) {
+      Alert.alert(
+        "Receipt Required",
+        "You must add a receipt before analyzing your documents.",
+      );
+      return;
+    }
+
     setDialogVisible(false);
     console.log(`Ready to send ${documents.length} documents`);
 
@@ -144,18 +159,11 @@ export default function ActionTab() {
     setProvince("");
     setPhotoBatch([]);
     setPickedFile(null);
-    setUserLabel("");
+    setDocType("receipt");
   };
 
   return (
-    <KeyboardAwareScrollView
-      className="flex-1 bg-slate-100"
-      contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
-      enableOnAndroid={true}
-      extraScrollHeight={80}
-      viewIsInsideTabBar={true}
-      keyboardShouldPersistTaps="handled"
-    >
+    <ScrollView className="flex-1 bg-slate-100">
       {/*PROVINCE SELECTOR SECTION*/}
       <Card.Content
         className="p-4 bg-white border-b border-slate-200"
@@ -179,149 +187,222 @@ export default function ActionTab() {
         />
       </Card.Content>
 
-      {/*Document Scanning Section*/}
+      {/* DOCUMENT TYPE SELECTOR (NEW) */}
+      <Card.Content className="p-4 bg-white border-b border-slate-200">
+        <Text
+          variant="bodyMedium"
+          className="mb-3 text-slate-500 uppercase tracking-wider"
+        >
+          What are you scanning? *
+        </Text>
+        <SegmentedButtons
+          value={docType}
+          onValueChange={setDocType}
+          buttons={[
+            {
+              value: "receipt",
+              label: "Receipt (Required)",
+              icon: (props) => <FontAwesome6 name="receipt" {...props} />,
+              disabled: hasReceipt,
+            },
+            {
+              value: "booklet",
+              label: "Booklet (Optional)",
+              icon: "book-open-variant",
+              disabled: hasBooklet,
+            },
+          ]}
+        />
+      </Card.Content>
 
-      <Card.Title title="Scan documents or Upload file" />
-      {pickedFile === null && (
-        <View>
-          <Card.Content className="gap-2">
-            <View
-              style={{
-                height: 320,
-                width: "100%",
-                backgroundColor: "black",
-                borderRadius: 8,
-                overflow: "hidden",
-              }}
-            >
-              <CameraView
-                style={{ flex: 1, width: "100%", height: "100%" }}
-                facing="back"
-                ref={cameraRef}
-              />
-            </View>
-            {photoBatch.length > 0 && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                className="mt-2 flex-row"
-                style={{ marginTop: "2%" }}
-              >
-                {photoBatch.map((uri, index) => (
-                  <Image
-                    key={index}
-                    source={{ uri }}
-                    style={{
-                      width: 64,
-                      height: 64,
-                      marginRight: 8,
-                      borderRadius: 8,
-                    }}
+      {/* DOCUMENT SCANNING SECTION */}
+      {documents.length < 2 && (
+        <>
+          <Card.Title
+            title={`Scan or Upload ${docType === "receipt" ? "Receipt" : "Benefit Booklet"}`}
+          />
+
+          {pickedFile === null && (
+            <View>
+              <Card.Content className="gap-2">
+                <View
+                  style={{
+                    height: 320,
+                    width: "100%",
+                    backgroundColor: "black",
+                    borderRadius: 8,
+                    overflow: "hidden",
+                  }}
+                >
+                  <CameraView
+                    style={{ flex: 1, width: "100%", height: "100%" }}
+                    facing="back"
+                    ref={cameraRef}
                   />
-                ))}
-              </ScrollView>
-            )}
-          </Card.Content>
-          <Card.Actions className="mt-2 flex-wrap">
-            {photoBatch.length > 0 && (
-              <Button mode="text" onPress={clearBatch} className="mr-2">
-                Clear Photos
+                </View>
+
+                {photoBatch.length > 0 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    className="mt-2 flex-row"
+                    style={{ marginTop: "2%" }}
+                  >
+                    {photoBatch.map((uri, index) => (
+                      <Image
+                        key={index}
+                        source={{ uri }}
+                        style={{
+                          width: 64,
+                          height: 64,
+                          marginRight: 8,
+                          borderRadius: 8,
+                        }}
+                      />
+                    ))}
+                  </ScrollView>
+                )}
+              </Card.Content>
+
+              <Card.Actions className="mt-2 flex-wrap">
+                {photoBatch.length > 0 && (
+                  <Button mode="text" onPress={clearBatch} className="mr-2">
+                    Clear
+                  </Button>
+                )}
+                <Button
+                  mode="contained"
+                  icon="camera"
+                  onPress={takePicture}
+                  className={
+                    photoBatch.length === 0 && !pickedFile ? "flex-1" : ""
+                  }
+                >
+                  Capture
+                </Button>
+              </Card.Actions>
+
+              {/* CONFIRM UPLOAD ACTIONS */}
+              <Card.Actions className="mt-2 justify-end">
+                {(photoBatch.length > 0 || pickedFile) && (
+                  <Button
+                    mode="contained"
+                    buttonColor="#4f46e5"
+                    onPress={handleConfirmUpload}
+                    className="w-full mt-4"
+                    contentStyle={{ height: 50 }}
+                  >
+                    Save {docType === "receipt" ? "Receipt" : "Booklet"}
+                  </Button>
+                )}
+              </Card.Actions>
+            </View>
+          )}
+
+          {/* DOCUMENT UPLOAD SECTION */}
+          {photoBatch.length === 0 && pickedFile === null && (
+            <Card.Content className="mt-4">
+              <Button
+                mode="contained-tonal"
+                icon="upload"
+                onPress={pickDocument}
+                className="w-full"
+              >
+                Upload {docType === "receipt" ? "Receipt" : "Booklet"} PDF/Image
               </Button>
-            )}
+            </Card.Content>
+          )}
 
-            <Button
-              mode="contained"
-              icon="camera"
-              onPress={takePicture}
-              className={photoBatch.length === 0 && !pickedFile ? "flex-1" : ""}
-            >
-              Capture
-            </Button>
-          </Card.Actions>
-
-          <Card.Content className="gap-2">
-            <Text variant="bodyMedium" className="text-slate-600 mb-2">
-              Label Pictures (Optional)
-            </Text>
-
-            <TextInput
-              mode="outlined"
-              label="e.g. Drug Receipt, Insurance Benefits"
-              value={userLabel}
-              onChangeText={setUserLabel}
-              multiline
-              numberOfLines={4}
-              className="bg-white"
-            />
-          </Card.Content>
-          <Card.Actions className="mt-2">
-            <Button mode="text" onPress={() => setUserLabel("")}>
-              Clear
-            </Button>
-
-            {(photoBatch.length > 0 || pickedFile) && (
+          {pickedFile && (
+            <View className="flex-1 justify-center items-center bg-slate-800 p-6 mx-4 rounded-xl mt-4">
+              <Text className="text-white font-bold text-center text-lg mb-2">
+                📄 {pickedFile.name}
+              </Text>
+              <Text className="text-slate-300 text-center mb-4">
+                {docType === "receipt" ? "Receipt" : "Benefit Booklet"} Selected
+              </Text>
               <Button
                 mode="contained"
                 onPress={handleConfirmUpload}
-                className="mr-2"
+                className="w-full"
+                buttonColor="#4f46e5"
               >
-                Confirm Label
+                Confirm File
               </Button>
-            )}
-          </Card.Actions>
-        </View>
+              <Button
+                mode="text"
+                textColor="white"
+                onPress={() => setPickedFile(null)}
+                className="mt-2"
+              >
+                Cancel
+              </Button>
+            </View>
+          )}
+        </>
       )}
 
-      {/* DOCUMENT UPLOAD SECTION*/}
-
-      {photoBatch.length === 0 && (
-        <Button
-          mode="contained-tonal"
-          icon="upload"
-          onPress={pickDocument}
-          className={
-            photoBatch.length === 0 && !pickedFile ? "flex-1 mr-2" : "mr-2"
-          }
-        >
-          Upload File
-        </Button>
-      )}
-
-      {pickedFile && (
-        <View className="flex-1 justify-center items-center bg-slate-800 p-4">
-          <Text className="text-white font-bold text-center text-lg mb-2">
-            📄 {pickedFile.name}
-          </Text>
-          <Text className="text-slate-300 text-center">Document Selected</Text>
-          <Card.Actions>
+      {documents.length > 0 &&
+        photoBatch.length === 0 &&
+        pickedFile === null && (
+          <Card.Content className="mt-4 pb-4">
             <Button
               mode="contained"
-              onPress={handleConfirmUpload}
-              className="mr-2"
+              buttonColor={hasReceipt ? "#22c55e" : undefined}
+              disabled={!hasReceipt}
+              icon="check-circle"
+              onPress={handleSendAll}
+              className="w-full"
+              contentStyle={{ height: 50 }}
+              style={{ marginTop: "5%" }}
             >
-              Confirm Upload
+              {hasReceipt
+                ? `Analyze ${documents.length} Saved Document(s)`
+                : "Receipt Required to Analyze"}
             </Button>
-          </Card.Actions>
-        </View>
-      )}
+          </Card.Content>
+        )}
 
+      {/* DIALOG PORTAL */}
       <Portal>
-        <Dialog visible={dialogVisible} dismissable={false}>
-          <Dialog.Title>Document Added</Dialog.Title>
+        <Dialog
+          visible={dialogVisible}
+          dismissable={false}
+          style={{ backgroundColor: "white" }}
+        >
+          <Dialog.Title>Document Saved</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">
-              The document has been successfully added. Add another document or
-              click Send All to continue.
+              Successfully added as a {docType}.
+              {documents.length === 2
+                ? " Both documents have been saved. You can now begin the analysis."
+                : docType === "receipt"
+                  ? " You can now analyze it, or add an optional Benefit Booklet for better results."
+                  : " A receipt is required. Please add your receipt to continue."}
             </Text>
           </Dialog.Content>
+
           <Dialog.Actions>
-            <Button onPress={handleAddAnother}>Add Another</Button>
-            <Button mode="contained" onPress={handleSendAll}>
-              Send All
-            </Button>
+            <View className="w-full flex-col gap-3 pb-2 px-2">
+              {documents.length < 2 && (
+                <Button mode="outlined" onPress={handleAddAnother} icon="plus">
+                  Add Another Document
+                </Button>
+              )}
+              <Button
+                mode="contained"
+                onPress={handleSendAll}
+                buttonColor={hasReceipt ? "#22c55e" : undefined}
+                disabled={!hasReceipt}
+                icon="check-circle"
+                style={{ marginTop: "5%" }}
+              >
+                Analyze Documents
+              </Button>
+            </View>
           </Dialog.Actions>
         </Dialog>
       </Portal>
-    </KeyboardAwareScrollView>
+    </ScrollView>
   );
 }

@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import React from "react";
 
-import { Feather, FontAwesome6, SimpleLineIcons } from "@expo/vector-icons";
+import { Feather, FontAwesome6, AntDesign } from "@expo/vector-icons";
 
 export default function TabLayout() {
   return (
@@ -37,9 +37,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="action"
         options={{
-          title: "Scan",
+          title: "Upload",
           tabBarIcon: ({ color }) => (
-            <SimpleLineIcons size={28} name="target" color={color} />
+            <AntDesign size={28} name="upload" color={color} />
           ),
         }}
       />
