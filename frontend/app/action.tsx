@@ -10,6 +10,7 @@ import {
   SegmentedButtons,
   Dialog,
   Portal,
+  ActivityIndicator,
 } from "react-native-paper";
 
 import { FontAwesome6 } from "@expo/vector-icons";
@@ -186,7 +187,7 @@ export default function ActionTab() {
       }
 
       const resultData = await response.json();
-      console.log("✅ Success:", resultData);
+      console.log("✅ Success:", JSON.stringify(resultData));
 
       // Clear out the state after sending
       setDocuments([]);
@@ -452,6 +453,28 @@ export default function ActionTab() {
               </Button>
             </View>
           </Dialog.Actions>
+        </Dialog>
+
+        <Dialog
+          visible={isUploading}
+          dismissable={false}
+          style={{ backgroundColor: "white" }}
+        >
+          <Dialog.Content className="items-center py-6">
+            <ActivityIndicator animating={true} size="large" color="#4f46e5" />
+            <Text
+              variant="titleMedium"
+              className="mt-4 font-bold text-slate-800"
+            >
+              Analyzing Documents...
+            </Text>
+            <Text
+              variant="bodyMedium"
+              className="mt-2 text-slate-500 text-center"
+            >
+              Please wait while our AI processes your files.
+            </Text>
+          </Dialog.Content>
         </Dialog>
       </Portal>
     </ScrollView>
