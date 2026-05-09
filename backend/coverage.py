@@ -81,13 +81,21 @@ PROVINCIAL_PROGRAMS = {
     }
 }
 
+def get_drug_key(drug_name: str) -> str:
+    name_lower = drug_name.lower()
+    for key in ODB_FORMULARY:
+        if key in name_lower:
+            return key
+    parts = name_lower.split()
+    return parts[0] if parts else "unknown"
+
 def check_coverage(
     drug_name: str,
     brand_cost: float,
     insurance_pct: float,
     province: str
 ) -> dict:
-    drug_key = drug_name.lower().split()[0] if drug_name and drug_name.strip() else "unknown"
+    drug_key = get_drug_key(drug_name) if drug_name and drug_name.strip() else "unknown"
     formulary = ODB_FORMULARY.get(drug_key, None)
 
     insurance_pays = round(brand_cost * (insurance_pct / 100), 2)

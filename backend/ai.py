@@ -27,24 +27,28 @@ def analyze_receipt_only(ocr_text: str, province: str) -> dict:
         model="llama-3.3-70b-versatile",
         messages=[{
             "role": "user",
-            "content": f"""Extract the SINGLE medication with highest patient cost from this pharmacy receipt.
-The cost is in the 'Patient Paid' or 'Paid' column on the right side.
+            "content": f"""You are a Canadian pharmacy receipt parser. Extract medication data accurately.
+
+RECEIPT TEXT:
+{ocr_text}
+
+INSTRUCTIONS:
+- Find ALL medications listed (look for DIN numbers, drug names, mg/ml dosages)
+- Pick the ONE with highest Patient Paid amount (right column)
+- Drug names follow DIN numbers e.g. "DIN 2245669 SALBUTAMOL APO-SALVENT"
+- Costs appear as dollar amounts like "$18.74" in the Patient Paid column
+- Ignore pharmacy name, patient name, dates, totals row
+- brand_cost = exact Patient Paid dollar amount for that drug
+- If insurance already paid part, brand_cost is still just the Patient Paid amount
+
 Return ONE JSON object only, no markdown, no explanation:
-
-Receipt text: {ocr_text}
-
-Return exactly this single JSON object:
 {{
-    "drug_name": "medication name and dosage",
-    "brand_cost": 0.00,
+    "drug_name": "generic drug name only e.g. SALBUTAMOL 100MCG",
+    "brand_cost": 18.74,
     "insurance_pct": 0
 }}
 
-Rules:
-- brand_cost = the dollar amount in the Patient Paid column for that drug
-- Pick the drug with the HIGHEST patient paid amount
-- If no cost found, use brand_cost=18.74
-IMPORTANT: Return ONLY ONE JSON object."""
+IMPORTANT: Return ONLY ONE JSON object. Real numbers only, no placeholders."""
         }],
         temperature=0.1
     )
@@ -85,14 +89,22 @@ def analyze_both(receipt_text: str, booklet_text: str, province: str) -> dict:
         model="llama-3.3-70b-versatile",
         messages=[{
         "role": "user",
-        "content": f"""Extract insurance coverage details from this benefit booklet.
-Return ONE JSON object only, no markdown, no explanation, no multiple objects:
+        "content": f"""You are a Canadian insurance benefit booklet parser.
 
-Booklet: {booklet_text}
+BOOKLET TEXT:
+{booklet_text}
 
-Return exactly this single JSON object:
+INSTRUCTIONS:
+- Find the prescription drug coverage percentage (look for % symbols near "drug", "prescription", "medication")
+- Find annual maximum (look for "$" amounts near "maximum", "annual", "per year")
+- Find deductible (look for "$" amounts near "deductible", "you pay first")
+- dental_covered = true if booklet mentions dental coverage
+- vision_covered = true if booklet mentions vision/eye coverage
+- prescription_covered = true if booklet mentions drug/prescription coverage
+
+Return ONE JSON object only, no markdown, no explanation:
 {{
-    "coverage_percentage": 70,
+    "coverage_percentage": 80,
     "max_annual": 5000,
     "deductible": 200,
     "dental_covered": true,
@@ -100,8 +112,7 @@ Return exactly this single JSON object:
     "prescription_covered": true
 }}
 
-If values not found use these defaults exactly as shown.
-IMPORTANT: Return ONLY ONE JSON object, not multiple."""
+IMPORTANT: Return ONLY ONE JSON object. Use defaults shown if values not found."""
     }],
     temperature=0.1
 )
@@ -117,24 +128,28 @@ IMPORTANT: Return ONLY ONE JSON object, not multiple."""
         model="llama-3.3-70b-versatile",
         messages=[{
         "role": "user",
-        "content": f"""Extract the SINGLE medication with highest patient cost from this pharmacy receipt.
-The cost is in the 'Patient Paid' or 'Paid' column on the right side.
+        "content": f"""You are a Canadian pharmacy receipt parser. Extract medication data accurately.
+
+RECEIPT TEXT:
+{receipt_text}
+
+INSTRUCTIONS:
+- Find ALL medications listed (look for DIN numbers, drug names, mg/ml dosages)
+- Pick the ONE with highest Patient Paid amount (right column)
+- Drug names follow DIN numbers e.g. "DIN 2245669 SALBUTAMOL APO-SALVENT"
+- Costs appear as dollar amounts like "$18.74" in the Patient Paid column
+- Ignore pharmacy name, patient name, dates, totals row
+- brand_cost = exact Patient Paid dollar amount for that drug
+- If insurance already paid part, brand_cost is still just the Patient Paid amount
+
 Return ONE JSON object only, no markdown, no explanation:
-
-Receipt: {receipt_text}
-
-Return exactly this single JSON object:
 {{
-    "drug_name": "medication name and dosage",
-    "brand_cost": 0.00,
+    "drug_name": "generic drug name only e.g. SALBUTAMOL 100MCG",
+    "brand_cost": 18.74,
     "insurance_pct": 0
 }}
 
-Rules:
-- brand_cost = the dollar amount in the Patient Paid column for that drug
-- Pick the drug with the HIGHEST patient paid amount
-- If no cost found, use brand_cost=18.74
-IMPORTANT: Return ONLY ONE JSON object."""
+IMPORTANT: Return ONLY ONE JSON object. Real numbers only, no placeholders."""
     }],
     temperature=0.1
 )
