@@ -1,4 +1,5 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as DocumentPicker from "expo-document-picker";
 import React, { useRef, useState } from "react";
 import { Alert, Image, ScrollView, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
@@ -14,13 +15,19 @@ import {
 
 interface UserDocument {
   label?: string;
-  pictures: string[];
+  pictures?: string[];
+  file?: { uri: string; name: string; mimeType?: string };
 }
 
 export default function ActionTab() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [photoBatch, setPhotoBatch] = useState<string[]>([]);
+  const [pickedFile, setPickedFile] = useState<{
+    uri: string;
+    name: string;
+    mimeType?: string;
+  } | null>(null);
   const [documents, setDocuments] = useState<UserDocument[]>([]);
   const [province, setProvince] = useState("");
   const [userLabel, setUserLabel] = useState("");
@@ -49,20 +56,48 @@ export default function ActionTab() {
 
   const takePicture = async () => {
     if (cameraRef.current) {
-      // Take the photo and get the local URI
-      const photo = await cameraRef.current.takePictureAsync({
-        // quality: 0.7, // Compress slightly for faster Python API processing later
-        base64: true, // Useful to send the raw image data to the backend
+      try {
+        // Take the photo and get the local URI
+        const photo = await cameraRef.current.takePictureAsync({
+          // quality: 0.7, // Compress slightly for faster Python API processing later
+          base64: true, // Useful to send the raw image data to the backend
+        });
+        setPhotoBatch((prev) => [...prev, photo.uri]);
+        setPickedFile(null); // Clear picked file if taking a new photo
+      } catch (err) {
+        console.error("Failed to take picture:", err);
+        Alert.alert("Error", "Could not capture photo. Please try again.");
+      }
+    }
+  };
+
+  const pickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*", // Allows any file type. You can restrict this to ["application/pdf", "application/msword", ...]
+        copyToCacheDirectory: true,
       });
-      setPhotoBatch((prev) => [...prev, photo.uri]);
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        setPickedFile({
+          uri: file.uri,
+          name: file.name,
+          mimeType: file.mimeType,
+        });
+        setPhotoBatch([]); // Clear photos if picking a document
+      }
+    } catch (err) {
+      console.error("Error picking document:", err);
     }
   };
 
   const clearBatch = () => {
     setPhotoBatch([]);
+    setPickedFile(null);
   };
 
-  const handleConfirmLabel = () => {
+  const handleConfirmUpload = () => {
     if (!province) {
       Alert.alert(
         "Missing Information",
@@ -74,6 +109,7 @@ export default function ActionTab() {
     const newDoc: UserDocument = {
       label: userLabel,
       pictures: [...photoBatch],
+      file: pickedFile ? { ...pickedFile } : undefined,
     };
     setDocuments((prev) => [...prev, newDoc]);
     setDialogVisible(true);
@@ -82,6 +118,7 @@ export default function ActionTab() {
   const handleAddAnother = () => {
     setDialogVisible(false);
     setPhotoBatch([]);
+    setPickedFile(null);
     setUserLabel("");
   };
 
@@ -105,6 +142,9 @@ export default function ActionTab() {
     // Clear out the state after sending
     setDocuments([]);
     setProvince("");
+    setPhotoBatch([]);
+    setPickedFile(null);
+    setUserLabel("");
   };
 
   return (
@@ -141,100 +181,132 @@ export default function ActionTab() {
 
       {/*Document Scanning Section*/}
 
-      <Card.Title title="Scan documents one at a time" />
-      <Card.Content className="gap-2">
-        <View
-          style={{
-            height: 320,
-            width: "100%",
-            backgroundColor: "black",
-            borderRadius: 8,
-            overflow: "hidden",
-          }}
-        >
-          <CameraView
-            style={{ flex: 1, width: "100%", height: "100%" }}
-            facing="back"
-            ref={cameraRef}
-          />
-        </View>
-        {photoBatch.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="mt-2 flex-row"
-            style={{ marginTop: "2%" }}
-          >
-            {photoBatch.map((uri, index) => (
-              <Image
-                key={index}
-                source={{ uri }}
-                style={{
-                  width: 64,
-                  height: 64,
-                  marginRight: 8,
-                  borderRadius: 8,
-                }}
+      <Card.Title title="Scan documents or Upload file" />
+      {pickedFile === null && (
+        <View>
+          <Card.Content className="gap-2">
+            <View
+              style={{
+                height: 320,
+                width: "100%",
+                backgroundColor: "black",
+                borderRadius: 8,
+                overflow: "hidden",
+              }}
+            >
+              <CameraView
+                style={{ flex: 1, width: "100%", height: "100%" }}
+                facing="back"
+                ref={cameraRef}
               />
-            ))}
-          </ScrollView>
-        )}
-      </Card.Content>
-      <Card.Actions className="mt-2 flex-wrap">
-        {photoBatch.length > 0 && (
-          <Button mode="text" onPress={clearBatch} className="mr-2">
-            Clear Photos
-          </Button>
-        )}
+            </View>
+            {photoBatch.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                className="mt-2 flex-row"
+                style={{ marginTop: "2%" }}
+              >
+                {photoBatch.map((uri, index) => (
+                  <Image
+                    key={index}
+                    source={{ uri }}
+                    style={{
+                      width: 64,
+                      height: 64,
+                      marginRight: 8,
+                      borderRadius: 8,
+                    }}
+                  />
+                ))}
+              </ScrollView>
+            )}
+          </Card.Content>
+          <Card.Actions className="mt-2 flex-wrap">
+            {photoBatch.length > 0 && (
+              <Button mode="text" onPress={clearBatch} className="mr-2">
+                Clear Photos
+              </Button>
+            )}
 
+            <Button
+              mode="contained"
+              icon="camera"
+              onPress={takePicture}
+              className={photoBatch.length === 0 && !pickedFile ? "flex-1" : ""}
+            >
+              Capture
+            </Button>
+          </Card.Actions>
+
+          <Card.Content className="gap-2">
+            <Text variant="bodyMedium" className="text-slate-600 mb-2">
+              Label Pictures (Optional)
+            </Text>
+
+            <TextInput
+              mode="outlined"
+              label="e.g. Drug Receipt, Insurance Benefits"
+              value={userLabel}
+              onChangeText={setUserLabel}
+              multiline
+              numberOfLines={4}
+              className="bg-white"
+            />
+          </Card.Content>
+          <Card.Actions className="mt-2">
+            <Button mode="text" onPress={() => setUserLabel("")}>
+              Clear
+            </Button>
+
+            {(photoBatch.length > 0 || pickedFile) && (
+              <Button
+                mode="contained"
+                onPress={handleConfirmUpload}
+                className="mr-2"
+              >
+                Confirm Label
+              </Button>
+            )}
+          </Card.Actions>
+        </View>
+      )}
+
+      {/* DOCUMENT UPLOAD SECTION*/}
+
+      {photoBatch.length === 0 && (
         <Button
-          mode="contained"
-          icon="camera"
-          onPress={takePicture}
-          className={photoBatch.length === 0 ? "w-full py-1" : ""}
+          mode="contained-tonal"
+          icon="upload"
+          onPress={pickDocument}
+          className={
+            photoBatch.length === 0 && !pickedFile ? "flex-1 mr-2" : "mr-2"
+          }
         >
-          Capture
+          Upload File
         </Button>
-      </Card.Actions>
+      )}
 
-      {/*Photo Label Section*/}
-
-      <Card.Content className="gap-2">
-        <Text variant="bodyMedium" className="text-slate-600 mb-2">
-          Label Pictures (Optional)
-        </Text>
-
-        <TextInput
-          mode="outlined"
-          label="e.g. Drug Receipt, Insurance Benefits"
-          value={userLabel}
-          onChangeText={setUserLabel}
-          multiline
-          numberOfLines={4}
-          className="bg-white"
-        />
-      </Card.Content>
-      <Card.Actions className="mt-2">
-        <Button mode="text" onPress={() => setUserLabel("")}>
-          Clear
-        </Button>
-
-        {photoBatch.length > 0 && (
-          <Button
-            mode="contained"
-            onPress={handleConfirmLabel}
-            className="mr-2"
-          >
-            Confirm Label
-          </Button>
-        )}
-      </Card.Actions>
+      {pickedFile && (
+        <View className="flex-1 justify-center items-center bg-slate-800 p-4">
+          <Text className="text-white font-bold text-center text-lg mb-2">
+            📄 {pickedFile.name}
+          </Text>
+          <Text className="text-slate-300 text-center">Document Selected</Text>
+          <Card.Actions>
+            <Button
+              mode="contained"
+              onPress={handleConfirmUpload}
+              className="mr-2"
+            >
+              Confirm Upload
+            </Button>
+          </Card.Actions>
+        </View>
+      )}
 
       <Portal>
-        <Dialog
-          visible={dialogVisible}
-          onDismiss={() => setDialogVisible(false)}
-        >
+        <Dialog visible={dialogVisible} dismissable={false}>
           <Dialog.Title>Document Added</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">
