@@ -37,7 +37,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="action"
         options={{
-          title: "Action",
+          title: "Scan",
           tabBarIcon: ({ color }) => (
             <SimpleLineIcons size={28} name="target" color={color} />
           ),
