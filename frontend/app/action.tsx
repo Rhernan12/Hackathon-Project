@@ -160,6 +160,9 @@ export default function ActionTab() {
     setPhotoBatch([]);
     setPickedFile(null);
     setDocType("receipt");
+
+    // Redirect to the dashboard to show the results
+    router.replace("/");
   };
 
   return (

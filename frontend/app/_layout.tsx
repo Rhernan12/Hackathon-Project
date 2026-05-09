@@ -48,8 +48,17 @@ export default function RootLayout() {
 
   return (
     <PaperProvider theme={customTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack
+        initialRouteName="action"
+        screenOptions={{
+          headerStyle: { backgroundColor: "#6366f1" },
+          headerTitleStyle: { fontFamily: "Poppins-Medium" },
+          headerTintColor: "#ffffff",
+        }}
+      >
+        <Stack.Screen name="action" options={{ title: "Scan Documents" }} />
+        <Stack.Screen name="index" options={{ title: "Dashboard Results" }} />
+        <Stack.Screen name="settings" options={{ title: "Settings" }} />
       </Stack>
     </PaperProvider>
   );
