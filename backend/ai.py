@@ -1,14 +1,13 @@
 import os
 import json
 from groq import Groq
-from dotenv import load_dotenv
 from coverage import check_coverage
 
-load_dotenv()
 
 client = Groq(api_key='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')
 
-def analyze_prescription(ocr_text: str, province: str) -> dict:
+def analyze_receipt_only(ocr_text: str, province: str) -> dict:
+    """Only receipt uploaded — find cheapest generic without knowing insurance"""
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{
@@ -18,14 +17,14 @@ Return JSON only, no markdown, no explanation:
 
 Receipt text: {ocr_text}
 
-Return exactly this structure:
+Return exactly:
 {{
     "drug_name": "name and dosage",
     "brand_cost": 0.00,
-    "insurance_pct": 70
+    "insurance_pct": 0
 }}
 
-If values not found use: brand_cost=94.00, insurance_pct=70"""
+If values not found use: brand_cost=94.00, insurance_pct=0"""
         }],
         temperature=0.1
     )
@@ -34,39 +33,49 @@ If values not found use: brand_cost=94.00, insurance_pct=70"""
     clean = text.replace("```json", "").replace("```", "").strip()
     drug_data = json.loads(clean)
 
-    # safety defaults
     if not drug_data.get("drug_name") or not drug_data["drug_name"].strip():
         drug_data["drug_name"] = "Unknown medication"
     if not drug_data.get("brand_cost"):
         drug_data["brand_cost"] = 94.00
-    if not drug_data.get("insurance_pct"):
-        drug_data["insurance_pct"] = 70
+    drug_data["insurance_pct"] = 0
 
     coverage = check_coverage(
         drug_name=drug_data["drug_name"],
         brand_cost=drug_data["brand_cost"],
-        insurance_pct=drug_data["insurance_pct"],
+        insurance_pct=0,
         province=province
     )
 
+    coverage["mode"] = "receipt_only"
+    coverage["message"] = "No insurance info provided — showing best generic price and provincial programs available to you."
     return {**drug_data, **coverage}
 
-def parse_booklet(ocr_text: str) -> dict:
-    response = client.chat.completions.create(
+def analyze_booklet_only() -> dict:
+    """Only booklet uploaded — prompt for receipt"""
+    return {
+        "mode": "booklet_only",
+        "error": True,
+        "message": "Benefit booklet received! Now upload your prescription receipt to see exactly how much you can save."
+    }
+
+def analyze_both(receipt_text: str, booklet_text: str, province: str) -> dict:
+    """Both uploaded — this is the wow moment"""
+    
+    # Step 1 - parse booklet for coverage
+    booklet_response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{
             "role": "user",
-            "content": f"""Extract insurance coverage details from this benefit booklet.
+            "content": f"""Extract insurance coverage from this benefit booklet.
 Return JSON only, no markdown:
 
-Booklet text: {ocr_text}
+Booklet: {booklet_text}
 
 Return exactly:
 {{
     "coverage_percentage": 70,
     "max_annual": 5000,
     "deductible": 200,
-    "exclusions": ["cosmetic", "experimental"],
     "dental_covered": true,
     "vision_covered": true,
     "prescription_covered": true
@@ -75,6 +84,60 @@ Return exactly:
         temperature=0.1
     )
 
-    text = response.choices[0].message.content
-    clean = text.replace("```json", "").replace("```", "").strip()
-    return json.loads(clean)
+    booklet_text_response = booklet_response.choices[0].message.content
+    booklet_clean = booklet_text_response.replace("```json", "").replace("```", "").strip()
+    booklet_data = json.loads(booklet_clean)
+
+    if not booklet_data.get("coverage_percentage"):
+        booklet_data["coverage_percentage"] = 70
+
+    # Step 2 - parse receipt for drug
+    receipt_response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{
+            "role": "user",
+            "content": f"""Extract prescription details from this pharmacy receipt.
+Return JSON only, no markdown:
+
+Receipt: {receipt_text}
+
+Return exactly:
+{{
+    "drug_name": "name and dosage",
+    "brand_cost": 0.00
+}}
+
+If not found use: brand_cost=94.00"""
+        }],
+        temperature=0.1
+    )
+
+    receipt_text_response = receipt_response.choices[0].message.content
+    receipt_clean = receipt_text_response.replace("```json", "").replace("```", "").strip()
+    drug_data = json.loads(receipt_clean)
+
+    if not drug_data.get("drug_name") or not drug_data["drug_name"].strip():
+        drug_data["drug_name"] = "Unknown medication"
+    if not drug_data.get("brand_cost"):
+        drug_data["brand_cost"] = 94.00
+
+    # Step 3 - run coverage engine with real insurance %
+    coverage = check_coverage(
+        drug_name=drug_data["drug_name"],
+        brand_cost=drug_data["brand_cost"],
+        insurance_pct=booklet_data["coverage_percentage"],
+        province=province
+    )
+
+    coverage["mode"] = "full_analysis"
+    coverage["booklet"] = booklet_data
+    coverage["message"] = f"With your {booklet_data['coverage_percentage']}% insurance coverage and switching to the generic, you could save ${coverage['total_savings']:.2f}."
+    
+    return {**drug_data, **coverage}
+
+# keep these for backward compatibility
+def analyze_prescription(ocr_text: str, province: str) -> dict:
+    return analyze_receipt_only(ocr_text, province)
+
+def parse_booklet(ocr_text: str) -> dict:
+    return {"raw_text": ocr_text, "mode": "booklet_only"}

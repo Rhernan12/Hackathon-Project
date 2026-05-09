@@ -1,7 +1,8 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
 from ocr import extract_text
-from ai import analyze_prescription, parse_booklet
+from ai import analyze_receipt_only, analyze_booklet_only, analyze_both, parse_booklet
 
 app = FastAPI(debug=True)
 
@@ -16,57 +17,55 @@ app.add_middleware(
 def root():
     return {"status": "Benefit Bot backend running"}
 
-@app.post("/scan/receipt")
-async def scan_receipt(
-    file: UploadFile = File(...),
-    province: str = Form(default="ontario")
+@app.post("/analyze")
+async def analyze(
+    province: str = Form(default="ontario"),
+    receipt: Optional[UploadFile] = File(default=None),
+    booklet: Optional[UploadFile] = File(default=None)
 ):
-    image_bytes = await file.read()
-    raw_text = extract_text(image_bytes, file.filename)
-    # reject if OCR found nothing useful
-    if len(raw_text.strip()) < 20:
-        return {
-            "error": True,
-            "message": "Could not read document. Please upload a clear photo of a pharmacy receipt or benefit booklet."
-        }
-    
-    # reject if no medical keywords found
     medical_keywords = ["mg", "rx", "din", "pharmacy", "prescription", "drug", "tablet", "capsule", "ml", "dose"]
-    has_medical = any(word in raw_text.lower() for word in medical_keywords)
-    
-    if not has_medical:
-        return {
-            "error": True,
-            "message": "This doesn't look like a pharmacy receipt. Please upload a prescription receipt or benefit booklet."
-        }
-    
-    result = analyze_prescription(raw_text, province)
-    result["raw_text"] = raw_text
-    return result
+    insurance_keywords = ["coverage", "benefit", "insurance", "dental", "vision", "prescription",
+                         "deductible", "premium", "plan", "eligible", "claim", "maximum"]
 
-@app.post("/scan/booklet")
-async def scan_booklet(file: UploadFile = File(...)):
-    image_bytes = await file.read()
-    raw_text = extract_text(image_bytes, file.filename)
-    # reject if OCR found nothing useful
-    if len(raw_text.strip()) < 20:
+    receipt_text = None
+    booklet_text = None
+
+    # process receipt if uploaded
+    if receipt:
+        receipt_bytes = await receipt.read()
+        receipt_text = extract_text(receipt_bytes, receipt.filename)
+        if len(receipt_text.strip()) < 20 or not any(w in receipt_text.lower() for w in medical_keywords):
+            return {
+                "error": True,
+                "message": "Could not read receipt. Please upload a clear photo of a pharmacy receipt."
+            }
+
+    # process booklet if uploaded
+    if booklet:
+        booklet_bytes = await booklet.read()
+        booklet_text = extract_text(booklet_bytes, booklet.filename)
+        if len(booklet_text.strip()) < 20 or not any(w in booklet_text.lower() for w in insurance_keywords):
+            return {
+                "error": True,
+                "message": "Could not read booklet. Please upload a clear photo of your benefit booklet."
+            }
+
+    # decide which mode
+    if receipt_text and booklet_text:
+        # wow moment - full analysis
+        result = analyze_both(receipt_text, booklet_text, province)
+    elif receipt_text and not booklet_text:
+        # receipt only - generic suggestions
+        result = analyze_receipt_only(receipt_text, province)
+    elif booklet_text and not receipt_text:
+        # booklet only - ask for receipt
+        result = analyze_booklet_only()
+    else:
         return {
             "error": True,
-            "message": "Could not read document. Please upload a clear photo of your benefit booklet."
+            "message": "Please upload at least a pharmacy receipt to get started."
         }
-    
-    # reject if no insurance keywords found
-    insurance_keywords = ["coverage", "benefit", "insurance", "dental", "vision", "prescription", 
-                         "deductible", "premium", "plan", "eligible", "claim", "maximum", "reimburs"]
-    has_insurance = any(word in raw_text.lower() for word in insurance_keywords)
-    
-    if not has_insurance:
-        return {
-            "error": True,
-            "message": "This doesn't look like a benefit booklet. Please upload your insurance benefit document."
-        }
-    result = parse_booklet(raw_text)
-    result["raw_text"] = raw_text
+
     return result
 
 @app.get("/health")
