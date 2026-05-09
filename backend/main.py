@@ -22,7 +22,7 @@ async def scan_receipt(
     province: str = Form(default="ontario")
 ):
     image_bytes = await file.read()
-    raw_text = extract_text(image_bytes)
+    raw_text = extract_text(image_bytes, file.filename)
     result = analyze_prescription(raw_text, province)
     result["raw_text"] = raw_text
     return result
@@ -30,7 +30,7 @@ async def scan_receipt(
 @app.post("/scan/booklet")
 async def scan_booklet(file: UploadFile = File(...)):
     image_bytes = await file.read()
-    raw_text = extract_text(image_bytes)
+    raw_text = extract_text(image_bytes, file.filename)
     result = parse_booklet(raw_text)
     result["raw_text"] = raw_text
     return result
