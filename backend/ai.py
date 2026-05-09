@@ -27,20 +27,24 @@ def analyze_receipt_only(ocr_text: str, province: str) -> dict:
         model="llama-3.3-70b-versatile",
         messages=[{
             "role": "user",
-            "content": f"""Extract the SINGLE most expensive medication from this pharmacy receipt.
-Return ONE JSON object only, no markdown, no explanation, no multiple objects:
+            "content": f"""Extract the SINGLE medication with highest patient cost from this pharmacy receipt.
+The cost is in the 'Patient Paid' or 'Paid' column on the right side.
+Return ONE JSON object only, no markdown, no explanation:
 
 Receipt text: {ocr_text}
 
 Return exactly this single JSON object:
 {{
-    "drug_name": "name and dosage of most expensive drug only",
+    "drug_name": "medication name and dosage",
     "brand_cost": 0.00,
     "insurance_pct": 0
 }}
 
-If values not found use: brand_cost=94.00, insurance_pct=0
-IMPORTANT: Return ONLY ONE JSON object, not multiple."""
+Rules:
+- brand_cost = the dollar amount in the Patient Paid column for that drug
+- Pick the drug with the HIGHEST patient paid amount
+- If no cost found, use brand_cost=18.74
+IMPORTANT: Return ONLY ONE JSON object."""
         }],
         temperature=0.1
     )
@@ -113,19 +117,24 @@ IMPORTANT: Return ONLY ONE JSON object, not multiple."""
         model="llama-3.3-70b-versatile",
         messages=[{
         "role": "user",
-        "content": f"""Extract the SINGLE most expensive medication from this pharmacy receipt.
-Return ONE JSON object only, no markdown, no explanation, no multiple objects:
+        "content": f"""Extract the SINGLE medication with highest patient cost from this pharmacy receipt.
+The cost is in the 'Patient Paid' column on the right side.
+Return ONE JSON object only, no markdown, no explanation:
 
 Receipt: {receipt_text}
 
 Return exactly this single JSON object:
 {{
-    "drug_name": "name and dosage of most expensive drug only",
-    "brand_cost": 0.00
+    "drug_name": "medication name and dosage",
+    "brand_cost": 0.00,
+    "insurance_pct": 0
 }}
 
-If not found use: brand_cost=94.00
-IMPORTANT: Return ONLY ONE JSON object, not multiple."""
+Rules:
+- brand_cost = the dollar amount in the Patient Paid column for that drug
+- Pick the drug with the HIGHEST patient paid amount
+- If no cost found, use brand_cost=18.74
+IMPORTANT: Return ONLY ONE JSON object."""
     }],
     temperature=0.1
 )
