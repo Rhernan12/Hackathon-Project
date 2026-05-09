@@ -103,29 +103,29 @@ def check_coverage(
 
     generic_available = formulary is not None
     generic_cost = formulary["generic_cost"] if formulary else brand_cost
-    generic_savings = round(out_of_pocket - generic_cost, 2) if generic_available else 0
-    generic_savings = max(generic_savings, 0)
+    
+    # only recommend generic if it's actually cheaper
+    generic_saves_money = generic_available and generic_cost < out_of_pocket
+    generic_savings = round(out_of_pocket - generic_cost, 2) if generic_saves_money else 0
+    total_savings = max(generic_savings, 0)
 
     provincial = PROVINCIAL_PROGRAMS.get(province.lower(), PROVINCIAL_PROGRAMS["ontario"])
-    provincial_covered = generic_available
-
-    total_savings = round(out_of_pocket - (generic_cost if generic_available else out_of_pocket), 2)
-    total_savings = max(total_savings, 0)
+    provincial_covered = generic_saves_money
 
     return {
         "brand_cost": brand_cost,
         "insurance_pays": insurance_pays,
         "out_of_pocket": out_of_pocket,
-        "generic_available": generic_available,
-        "generic_name": formulary["brand"] + " (generic)" if formulary else None,
-        "generic_cost": generic_cost,
+        "generic_available": generic_saves_money,
+        "generic_name": formulary["brand"] + " (generic)" if generic_saves_money else None,
+        "generic_cost": generic_cost if generic_saves_money else None,
         "generic_savings": generic_savings,
         "provincial_program": provincial["name"],
         "provincial_link": provincial["link"],
         "provincial_covered": provincial_covered,
         "total_savings": total_savings,
         "verdict": f"You could save ${total_savings:.2f} by switching to the generic and applying for {provincial['name']}."
-        if total_savings > 0 else 
+        if total_savings > 0 else
         "No generic alternative found in the Ontario Drug Benefit formulary. You may still be eligible for provincial coverage — check with your pharmacist."
-        if not generic_available else
+        if not generic_saves_money else
         "You are already getting the best available price."}
