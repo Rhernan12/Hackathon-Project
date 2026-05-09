@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from ocr import extract_text
 from ai import analyze_prescription, parse_booklet
 
-app = FastAPI()
+app = FastAPI(debug=True)
 
 app.add_middleware(
     CORSMiddleware,

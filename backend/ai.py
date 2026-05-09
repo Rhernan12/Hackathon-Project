@@ -6,11 +6,11 @@ from coverage import check_coverage
 
 load_dotenv()
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+client = Groq(api_key='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')
 
 def analyze_prescription(ocr_text: str, province: str) -> dict:
     response = client.chat.completions.create(
-        model="llama3-70b-8192",
+        model="llama-3.3-70b-versatile",
         messages=[{
             "role": "user",
             "content": f"""Extract prescription details from this pharmacy receipt.
@@ -34,6 +34,14 @@ If values not found use: brand_cost=94.00, insurance_pct=70"""
     clean = text.replace("```json", "").replace("```", "").strip()
     drug_data = json.loads(clean)
 
+    # safety defaults
+    if not drug_data.get("drug_name") or not drug_data["drug_name"].strip():
+        drug_data["drug_name"] = "Unknown medication"
+    if not drug_data.get("brand_cost"):
+        drug_data["brand_cost"] = 94.00
+    if not drug_data.get("insurance_pct"):
+        drug_data["insurance_pct"] = 70
+
     coverage = check_coverage(
         drug_name=drug_data["drug_name"],
         brand_cost=drug_data["brand_cost"],
@@ -45,7 +53,7 @@ If values not found use: brand_cost=94.00, insurance_pct=70"""
 
 def parse_booklet(ocr_text: str) -> dict:
     response = client.chat.completions.create(
-        model="llama3-70b-8192",
+        model="llama-3.3-70b-versatile",
         messages=[{
             "role": "user",
             "content": f"""Extract insurance coverage details from this benefit booklet.

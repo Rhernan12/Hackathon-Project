@@ -40,7 +40,7 @@ def check_coverage(
     insurance_pct: float,
     province: str
 ) -> dict:
-    drug_key = drug_name.lower().split()[0]
+    drug_key = drug_name.lower().split()[0] if drug_name and drug_name.strip() else "unknown"
     formulary = ODB_FORMULARY.get(drug_key, None)
 
     insurance_pays = round(brand_cost * (insurance_pct / 100), 2)
