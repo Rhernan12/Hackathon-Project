@@ -3,6 +3,21 @@ import json
 from groq import Groq
 from coverage import check_coverage
 
+def extract_json(text: str) -> dict:
+    """Robustly extract JSON from LLM response"""
+    # remove markdown code blocks
+    clean = text.replace("```json", "").replace("```", "").strip()
+    
+    # find the first { and last } and extract just that
+    start = clean.find("{")
+    end = clean.rfind("}") + 1
+    
+    if start == -1 or end == 0:
+        return {}
+    
+    json_str = clean[start:end]
+    print("DEBUG JSON:", json_str)
+    return json.loads(json_str)
 
 client = Groq(api_key='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')
 
@@ -12,26 +27,26 @@ def analyze_receipt_only(ocr_text: str, province: str) -> dict:
         model="llama-3.3-70b-versatile",
         messages=[{
             "role": "user",
-            "content": f"""Extract prescription details from this pharmacy receipt.
-Return JSON only, no markdown, no explanation:
+            "content": f"""Extract the SINGLE most expensive medication from this pharmacy receipt.
+Return ONE JSON object only, no markdown, no explanation, no multiple objects:
 
 Receipt text: {ocr_text}
 
-Return exactly:
+Return exactly this single JSON object:
 {{
-    "drug_name": "name and dosage",
+    "drug_name": "name and dosage of most expensive drug only",
     "brand_cost": 0.00,
     "insurance_pct": 0
 }}
 
-If values not found use: brand_cost=94.00, insurance_pct=0"""
+If values not found use: brand_cost=94.00, insurance_pct=0
+IMPORTANT: Return ONLY ONE JSON object, not multiple."""
         }],
         temperature=0.1
     )
 
     text = response.choices[0].message.content
-    clean = text.replace("```json", "").replace("```", "").strip()
-    drug_data = json.loads(clean)
+    drug_data = extract_json(text)
 
     if not drug_data.get("drug_name") or not drug_data["drug_name"].strip():
         drug_data["drug_name"] = "Unknown medication"
@@ -65,13 +80,13 @@ def analyze_both(receipt_text: str, booklet_text: str, province: str) -> dict:
     booklet_response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{
-            "role": "user",
-            "content": f"""Extract insurance coverage from this benefit booklet.
-Return JSON only, no markdown:
+        "role": "user",
+        "content": f"""Extract insurance coverage details from this benefit booklet.
+Return ONE JSON object only, no markdown, no explanation, no multiple objects:
 
 Booklet: {booklet_text}
 
-Return exactly:
+Return exactly this single JSON object:
 {{
     "coverage_percentage": 70,
     "max_annual": 5000,
@@ -79,14 +94,16 @@ Return exactly:
     "dental_covered": true,
     "vision_covered": true,
     "prescription_covered": true
-}}"""
-        }],
-        temperature=0.1
-    )
+}}
+
+If values not found use these defaults exactly as shown.
+IMPORTANT: Return ONLY ONE JSON object, not multiple."""
+    }],
+    temperature=0.1
+)
 
     booklet_text_response = booklet_response.choices[0].message.content
-    booklet_clean = booklet_text_response.replace("```json", "").replace("```", "").strip()
-    booklet_data = json.loads(booklet_clean)
+    booklet_data = extract_json(booklet_text_response)
 
     if not booklet_data.get("coverage_percentage"):
         booklet_data["coverage_percentage"] = 70
@@ -95,26 +112,26 @@ Return exactly:
     receipt_response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{
-            "role": "user",
-            "content": f"""Extract prescription details from this pharmacy receipt.
-Return JSON only, no markdown:
+        "role": "user",
+        "content": f"""Extract the SINGLE most expensive medication from this pharmacy receipt.
+Return ONE JSON object only, no markdown, no explanation, no multiple objects:
 
 Receipt: {receipt_text}
 
-Return exactly:
+Return exactly this single JSON object:
 {{
-    "drug_name": "name and dosage",
+    "drug_name": "name and dosage of most expensive drug only",
     "brand_cost": 0.00
 }}
 
-If not found use: brand_cost=94.00"""
-        }],
-        temperature=0.1
-    )
+If not found use: brand_cost=94.00
+IMPORTANT: Return ONLY ONE JSON object, not multiple."""
+    }],
+    temperature=0.1
+)
 
     receipt_text_response = receipt_response.choices[0].message.content
-    receipt_clean = receipt_text_response.replace("```json", "").replace("```", "").strip()
-    drug_data = json.loads(receipt_clean)
+    drug_data = extract_json(receipt_text_response)
 
     if not drug_data.get("drug_name") or not drug_data["drug_name"].strip():
         drug_data["drug_name"] = "Unknown medication"
