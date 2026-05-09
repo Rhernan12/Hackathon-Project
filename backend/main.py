@@ -1,11 +1,10 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from ocr import extract_text
-from pydantic import BaseModel
+from ai import analyze_prescription, parse_booklet
 
 app = FastAPI()
 
-# allow Rafael's React Native app to call this
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,46 +12,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class ProvinceRequest(BaseModel):
-    province: str
-
 @app.get("/")
 def root():
     return {"status": "Benefit Bot backend running"}
 
 @app.post("/scan/receipt")
-async def scan_receipt(file: UploadFile = File(...), province: str = "ontario"):
+async def scan_receipt(
+    file: UploadFile = File(...),
+    province: str = Form(default="ontario")
+):
     image_bytes = await file.read()
     raw_text = extract_text(image_bytes)
-
-    # dummy response for now — replace with real AI tomorrow
-    return {
-        "raw_text": raw_text,
-        "drug_name": "Metformin 500mg",
-        "brand_cost": 94.00,
-        "insurance_coverage": 0.70,
-        "out_of_pocket": 28.20,
-        "generic_name": "Metformin (generic)",
-        "generic_cost": 12.00,
-        "provincial_program": "Ontario Trillium Drug Program",
-        "provincial_covered": True,
-        "savings": 82.00,
-        "apply_link": "https://www.ontario.ca/page/trillium-drug-program"
-    }
+    result = analyze_prescription(raw_text, province)
+    result["raw_text"] = raw_text
+    return result
 
 @app.post("/scan/booklet")
 async def scan_booklet(file: UploadFile = File(...)):
     image_bytes = await file.read()
     raw_text = extract_text(image_bytes)
-
-    # dummy response for now
-    return {
-        "raw_text": raw_text,
-        "coverage_percentage": 70,
-        "max_annual": 5000,
-        "deductible": 200,
-        "exclusions": ["cosmetic", "experimental"]
-    }
+    result = parse_booklet(raw_text)
+    result["raw_text"] = raw_text
+    return result
 
 @app.get("/health")
 def health():
