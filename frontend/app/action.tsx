@@ -5,7 +5,6 @@ import React, { useRef, useState } from "react";
 import { Alert, ScrollView, View } from "react-native";
 import { Button, Text, Card } from "react-native-paper";
 
-// Import extracted components and types
 import { UserDocument } from "../types/types";
 import ProvinceSelector from "../components/ProvinceSelector";
 import DocumentTypeSelector from "../components/DocumentTypeSelector";
