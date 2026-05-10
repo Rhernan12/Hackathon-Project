@@ -11,7 +11,9 @@ export default function BenefitDashboard() {
   const parsedData = useMemo(() => {
     if (!result) return null;
     try {
-      return JSON.parse(result as string);
+      const temp = JSON.parse(result as string);
+      console.log(JSON.stringify(temp));
+      return temp;
     } catch (e) {
       console.error("Failed to parse result", e);
       return null;
@@ -133,7 +135,7 @@ export default function BenefitDashboard() {
             backgroundColor: isPriceHigher
               ? "#ff832B"
               : noSavingsFound
-                ? "#687076"
+                ? "#747a7f"
                 : "#22c55e",
           }}
         >
@@ -150,26 +152,25 @@ export default function BenefitDashboard() {
                   ${currentCost.toFixed(2)}
                 </Text>
               </View>
-              <View
-                className="p-2 rounded-lg"
-                style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
-              >
-                <Text className="font-bold">➔</Text>
-              </View>
-              <View className="items-end">
-                <Text className="text-white uppercase text-xs font-bold">
-                  New Cost
-                </Text>
-                <Text variant="displaySmall" className="text-white font-bold">
-                  ${newCost.toFixed(2)}
-                </Text>
-              </View>
+              {newCost !== 0 && (
+                <View className="p-2 rounded-lg">
+                  <View>
+                    <Text className="font-bold">➔</Text>
+                  </View>
+                  <View className="items-end">
+                    <Text className="text-white uppercase text-xs font-bold">
+                      New Cost
+                    </Text>
+                    <Text
+                      variant="displaySmall"
+                      className="text-white font-bold"
+                    >
+                      ${newCost.toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
-
-            <Divider
-              className="mb-4"
-              style={{ backgroundColor: "rgba(255,255,255,0.3)" }}
-            />
 
             {!noSavingsFound && (
               <List.Item
